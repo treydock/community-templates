@@ -3,6 +3,7 @@ kind: snippet
 name: puppetlabs_repo
 -%>
 <%
+repo_base    = host_param('puppetlabs-repo-base') ? host_param('puppetlabs-repo-base') : nil
 http_proxy   = host_param('http-proxy') ? " --httpproxy #{host_param('http-proxy')}" : nil
 http_port    = host_param('http-proxy-port') ? " --httpport #{host_param('http-proxy-port')}" : nil
 proxy_uri    = host_param('http-proxy') ? "http://#{host_param('http-proxy')}:#{host_param('http-proxy-port')}" : nil
@@ -13,20 +14,20 @@ os_major  = @host.operatingsystem.major.to_i
 os_name   = @host.operatingsystem.name
 
 if os_family == 'Redhat'
-  repo_host = 'yum.puppetlabs.com'
+  repo_base ||= 'https://yum.puppetlabs.com'
   if os_name == 'Fedora'
     repo_os = 'fedora'
   else
     repo_os = 'el'
   end
 elsif os_family == 'Suse'
-  repo_host = 'yum.puppetlabs.com'
+  repo_base ||= 'https://yum.puppetlabs.com'
   repo_os = 'sles' # PuppetLabs repos only exist for SLES, not OpenSUSE
 elsif os_family == 'Debian'
-  repo_host = 'apt.puppetlabs.com'
+  repo_base ||= 'https://apt.puppetlabs.com'
   repo_os = @host.operatingsystem.release_name
 elsif os_family == 'Windows'
-  repo_host = 'downloads.puppetlabs.com'
+  repo_base ||= 'https://downloads.puppetlabs.com'
   repo_os = 'windows'
 end
 
@@ -43,14 +44,14 @@ repo_subdir = host_param_true?('enable-puppetlabs-puppet5-repo') ? 'puppet5/' : 
 
 <% if repo_name -%>
 <% if os_family == 'Redhat' || os_name == 'SLES' -%>
-rpm -Uvh<%= http_proxy %><%= http_port %> https://<%= repo_host %>/<%= repo_subdir %><%= repo_name %>-<%= repo_os %>-<%= os_major %>.noarch.rpm
+rpm -Uvh<%= http_proxy %><%= http_port %> <%= repo_base %>/<%= repo_subdir %><%= repo_name %>-<%= repo_os %>-<%= os_major %>.noarch.rpm
 <% elsif os_family == 'Debian' -%>
 apt-get update
 apt-get -y install ca-certificates
-wget -O /tmp/<%= repo_name %>-<%= repo_os %>.deb<%= proxy_string %> https://<%= repo_host %>/<%= repo_name %>-<%= repo_os %>.deb
+wget -O /tmp/<%= repo_name %>-<%= repo_os %>.deb<%= proxy_string %> <%= repo_base %>/<%= repo_name %>-<%= repo_os %>.deb
 dpkg -i /tmp/<%= repo_name %>-<%= repo_os %>.deb
 <% elsif os_family == 'Windows' -%>
-$puppet_agent_source = 'https://<%= repo_host %>/<%= repo_os %>/puppet-agent-<%= @host.architecture %>-latest.msi'
+$puppet_agent_source = '<%= repo_base %>/<%= repo_os %>/puppet-agent-<%= @host.architecture %>-latest.msi'
 $puppet_agent_msi = "${env:TEMP}\puppet-agent-<%= @host.architecture %>.msi"
 Write-Host "Downloading puppet-agent from ${$puppet_agent_source} to ${puppet_agent_msi}"
 Start-BitsTransfer -Source "${puppet_agent_source}" -Destination "${puppet_agent_msi}"<%= proxy_string_bits %>
